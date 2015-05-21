@@ -11,12 +11,12 @@ setup(
     name="m3u8",
     author='Globo.com',
     author_email='videos3@corp.globo.com',
-    version="0.2.4",
+    version="0.2.4.1",
     zip_safe=False,
     include_package_data=True,
     install_requires=install_reqs,
     packages=["m3u8"],
-    url="https://github.com/globocom/m3u8",
+    url="https://github.com/GrumpyOldTroll/m3u8",
     description="Python m3u8 parser",
     long_description=long_description
     )
