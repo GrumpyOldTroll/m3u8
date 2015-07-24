@@ -348,8 +348,8 @@ class Segment(BasePathMixin):
 
         if self.discontinuity:
             output.append('#EXT-X-DISCONTINUITY\n')
+        if self.program_date_time:
             output.append('#EXT-X-PROGRAM-DATE-TIME:%s\n' % parser.format_date_time(self.program_date_time))
-
         output.append('#EXTINF:%s,' % int_or_float_to_string(self.duration))
         if self.title:
             output.append(quoted(self.title))
@@ -567,7 +567,7 @@ class Media(BasePathMixin):
     def __init__(self, uri=None, type=None, group_id=None, language=None,
                  name=None, default=None, autoselect=None, forced=None,
                  characteristics=None, assoc_language=None,
-                 instream_id=None,base_uri=None):
+                 instream_id=None,base_uri=None, **extras):
         self.base_uri = base_uri
         self.uri = uri
         self.type = type
@@ -580,6 +580,7 @@ class Media(BasePathMixin):
         self.assoc_language = assoc_language
         self.instream_id = instream_id
         self.characteristics = characteristics
+        self.extras = extras
 
     def dumps(self):
         media_out = []
@@ -636,13 +637,8 @@ def quoted(string):
     return '"%s"' % string
 
 def _urijoin(base_uri, path):
-    if parser.is_url(base_uri):
-        parsed_url = url_parser.urlparse(base_uri)
-        prefix = parsed_url.scheme + '://' + parsed_url.netloc
-        new_path = posixpath.normpath(parsed_url.path + '/' + path)
-        return url_parser.urljoin(prefix, new_path.strip('/'))
-    else:
-        return os.path.normpath(os.path.join(base_uri, path.strip('/')))
+    return url_parser.urljoin(base_uri, path)
+
 
 def int_or_float_to_string(number):
     return str(int(number)) if number == math.floor(number) else str(number)
