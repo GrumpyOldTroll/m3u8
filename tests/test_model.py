@@ -6,11 +6,11 @@
 #Tests M3U8 class to make sure all attributes and methods use the correct
 #data returned from parser.parse()
 
+import arrow
 import datetime
 import m3u8
 import playlists
 from m3u8.model import Segment
-from m3u8.parser import cast_date_time
 
 def test_target_duration_attribute():
     obj = m3u8.M3U8(playlists.SIMPLE_PLAYLIST)
@@ -24,28 +24,23 @@ def test_media_sequence_attribute():
 
     assert '1234567' == obj.media_sequence
 
-def test_implicit_media_sequence_value():
-    obj = m3u8.M3U8(playlists.SIMPLE_PLAYLIST)
-
-    assert 0 == obj.media_sequence
-
 def test_program_date_time_attribute():
     obj = m3u8.M3U8(playlists.SIMPLE_PLAYLIST_WITH_PROGRAM_DATE_TIME)
 
-    assert cast_date_time('2014-08-13T13:36:33+00:00') == obj.program_date_time
+    assert arrow.get('2014-08-13T13:36:33+00:00').datetime == obj.program_date_time
 
 def test_program_date_time_attribute_for_each_segment():
     obj = m3u8.M3U8(playlists.SIMPLE_PLAYLIST_WITH_PROGRAM_DATE_TIME)
 
-    first_program_date_time = cast_date_time('2014-08-13T13:36:33+00:00')
+    first_program_date_time = arrow.get('2014-08-13T13:36:33+00:00').datetime
     for idx, segment in enumerate(obj.segments):
         assert segment.program_date_time == first_program_date_time + datetime.timedelta(seconds=idx * 3)
 
 def test_program_date_time_attribute_with_discontinuity():
     obj = m3u8.M3U8(playlists.DISCONTINUITY_PLAYLIST_WITH_PROGRAM_DATE_TIME)
 
-    first_program_date_time = cast_date_time('2014-08-13T13:36:33+00:00')
-    discontinuity_program_date_time = cast_date_time('2014-08-13T13:36:55+00:00')
+    first_program_date_time = arrow.get('2014-08-13T13:36:33+00:00').datetime
+    discontinuity_program_date_time = arrow.get('2014-08-13T13:36:55+00:00').datetime
 
     segments = obj.segments
 
@@ -61,6 +56,14 @@ def test_segment_discontinuity_attribute():
     assert segments[0].discontinuity == False
     assert segments[5].discontinuity == True
     assert segments[6].discontinuity == False
+
+def test_segment_cue_out_attribute():
+    obj = m3u8.M3U8(playlists.CUE_OUT_PLAYLIST)
+    segments = obj.segments
+
+    assert segments[0].cue_out == True
+    assert segments[1].cue_out == True
+    assert segments[2].cue_out == True
 
 def test_key_attribute():
     obj = m3u8.M3U8(playlists.SIMPLE_PLAYLIST)
@@ -310,6 +313,14 @@ def test_event_playlist_type_should_be_imported_as_a_simple_attribute():
     obj = m3u8.M3U8(playlists.SIMPLE_PLAYLIST_WITH_EVENT_PLAYLIST_TYPE)
     assert obj.playlist_type == 'event'
 
+def test_independent_segments_should_be_true():
+    obj = m3u8.M3U8(playlists.SIMPLE_PLAYLIST_WITH_INDEPENDENT_SEGMENTS)
+    assert obj.is_independent_segments
+
+def test_independent_segments_should_be_false():
+    obj = m3u8.M3U8(playlists.SIMPLE_PLAYLIST_WITH_EVENT_PLAYLIST_TYPE)
+    assert not obj.is_independent_segments
+
 def test_no_playlist_type_leaves_attribute_empty():
     obj = m3u8.M3U8(playlists.SIMPLE_PLAYLIST)
     assert obj.playlist_type is None
@@ -318,11 +329,7 @@ def test_no_playlist_type_leaves_attribute_empty():
 # dump m3u8
 
 def test_dumps_should_build_same_string():
-    playlists_model = [
-        playlists.PLAYLIST_WITH_NON_INTEGER_DURATION,
-        playlists.PLAYLIST_WITH_ENCRIPTED_SEGMENTS,
-        playlists.PLAYLIST_WITH_ENCRIPTED_SEGMENTS_AND_IV,
-    ]
+    playlists_model = [playlists.PLAYLIST_WITH_NON_INTEGER_DURATION, playlists.PLAYLIST_WITH_ENCRIPTED_SEGMENTS_AND_IV]
     for playlist in playlists_model:
         obj = m3u8.M3U8(playlist)
         expected = playlist.replace(', IV', ',IV').strip()
@@ -369,18 +376,19 @@ def test_dump_should_work_for_variant_playlists_with_iframe_playlists():
 
     assert expected == obj.dumps().strip()
 
-def test_dump_should_work_for_variant_playlists_with_media():
-    obj = m3u8.M3U8(playlists.VARIANT_PLAYLIST_WITH_MEDIA)
-
-    expected = playlists.VARIANT_PLAYLIST_WITH_MEDIA.strip()
-
-    assert expected == obj.dumps().strip()
-
 def test_dump_should_work_for_iframe_playlists():
     obj = m3u8.M3U8(playlists.IFRAME_PLAYLIST)
 
     expected = playlists.IFRAME_PLAYLIST.strip()
 
+    assert expected == obj.dumps().strip()
+
+    obj = m3u8.M3U8(playlists.IFRAME_PLAYLIST2)
+
+    expected = playlists.IFRAME_PLAYLIST.strip()
+
+    # expected that dump will reverse EXTINF and EXT-X-BYTERANGE,
+    # hence IFRAME_PLAYLIST dump from IFRAME_PLAYLIST2 parse.
     assert expected == obj.dumps().strip()
 
     obj = m3u8.M3U8(playlists.IFRAME_PLAYLIST2)
@@ -507,7 +515,7 @@ def test_0_media_sequence_added_to_file():
     obj = m3u8.M3U8()
     obj.media_sequence = 0
     result = obj.dumps()
-    expected = '#EXTM3U\n'
+    expected = '#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:0\n'
     assert result == expected
 
 def test_none_media_sequence_gracefully_ignored():
@@ -529,9 +537,13 @@ def test_m3u8_should_propagate_base_uri_to_segments():
     obj = m3u8.M3U8(content, base_uri='/any/path')
     assert '/entire1.ts' == obj.segments[0].uri
     assert '/any/path/entire1.ts' == obj.segments[0].absolute_uri
+    assert 'entire4.ts' == obj.segments[3].uri
+    assert '/any/path/entire4.ts' == obj.segments[3].absolute_uri
     obj.base_uri = '/any/where/'
     assert '/entire1.ts' == obj.segments[0].uri
     assert '/any/where/entire1.ts' == obj.segments[0].absolute_uri
+    assert 'entire4.ts' == obj.segments[3].uri
+    assert '/any/where/entire4.ts' == obj.segments[3].absolute_uri
 
 def test_m3u8_should_propagate_base_uri_to_key():
     with open(playlists.RELATIVE_PLAYLIST_FILENAME) as f:
@@ -542,27 +554,6 @@ def test_m3u8_should_propagate_base_uri_to_key():
     obj.base_uri = '/any/where/'
     assert '../key.bin' == obj.key.uri
     assert '/any/key.bin' == obj.key.absolute_uri
-
-def test_m3u8_should_propagate_base_uri_to_media():
-    content = playlists.VARIANT_PLAYLIST_WITH_MEDIA
-    obj = m3u8.M3U8(content, base_uri='/any/path/')
-    assert 'captions.m3u8' == obj.media[0].uri
-    assert '/any/path/captions.m3u8' == obj.media[0].absolute_uri
-    obj.base_uri = '/any/where/'
-    assert 'captions.m3u8' == obj.media[0].uri
-    assert '/any/where/captions.m3u8' == obj.media[0].absolute_uri
-
-def test_m3u8_should_not_fail_on_closed_captions():
-    content = playlists.VARIANT_PLAYLIST_WITH_CLOSED_CAPTIONS
-    obj = m3u8.M3U8(content, base_uri='/any/path/')
-    assert 'video-800k.m3u8' == obj.playlists[0].uri
-    assert '/any/path/video-800k.m3u8' == obj.playlists[0].absolute_uri
-    obj.base_uri = '/any/where/'
-    assert 'video-800k.m3u8' == obj.playlists[0].uri
-    assert '/any/where/video-800k.m3u8' == obj.playlists[0].absolute_uri
-    assert obj.media[0].uri is None
-    assert obj.media[0].absolute_uri is None
-    assert obj.media[0].type == 'CLOSED-CAPTIONS'
 
 
 # custom asserts

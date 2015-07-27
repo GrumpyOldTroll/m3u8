@@ -105,6 +105,10 @@ class M3U8(object):
         Returns true if EXT-X-I-FRAMES-ONLY tag present in M3U8.
         http://tools.ietf.org/html/draft-pantos-http-live-streaming-07#section-3.3.12
 
+      `is_independent_segments`
+        Returns true if EXT-X-INDEPENDENT-SEGMENTS tag present in M3U8.
+        https://tools.ietf.org/html/draft-pantos-http-live-streaming-13#section-3.4.16
+
     '''
 
     simple_attributes = (
@@ -115,6 +119,7 @@ class M3U8(object):
         ('target_duration',  'targetduration'),
         ('media_sequence',   'media_sequence'),
         ('program_date_time',   'program_date_time'),
+        ('is_independent_segments', 'is_independent_segments'),
         ('version',          'version'),
         ('allow_cache',      'allow_cache'),
         ('playlist_type',    'playlist_type')
@@ -126,6 +131,10 @@ class M3U8(object):
         else:
             self.data = {}
         self._base_uri = base_uri
+        if self._base_uri:
+            if not self._base_uri.endswith('/'):
+                self._base_uri += '/'
+
         self._initialize_attributes()
         self.base_path = base_path
 
@@ -212,6 +221,8 @@ class M3U8(object):
         You could also use unicode(<this obj>) or str(<this obj>)
         '''
         output = ['#EXTM3U']
+        if self.is_independent_segments:
+            output.append('#EXT-X-INDEPENDENT-SEGMENTS')
         if self.media_sequence > 0:
             output.append('#EXT-X-MEDIA-SEQUENCE:' + str(self.media_sequence))
         if self.allow_cache:
@@ -315,6 +326,9 @@ class Segment(BasePathMixin):
       Returns a boolean indicating if a EXT-X-DISCONTINUITY tag exists
       http://tools.ietf.org/html/draft-pantos-http-live-streaming-13#section-3.4.11
 
+    `cue_out`
+      Returns a boolean indicating if a EXT-X-CUE-OUT-CONT tag exists
+
     `duration`
       duration attribute from EXTINF parameter
 
@@ -329,7 +343,7 @@ class Segment(BasePathMixin):
     '''
 
     def __init__(self, uri, base_uri, program_date_time=None, duration=None,
-                 title=None, byterange=None, discontinuity=False, key=None):
+                 title=None, byterange=None, cue_out=False, discontinuity=False, key=None):
         self.uri = uri
         self.duration = duration
         self.title = title
@@ -337,6 +351,7 @@ class Segment(BasePathMixin):
         self.byterange = byterange
         self.program_date_time = program_date_time
         self.discontinuity = discontinuity
+        self.cue_out = cue_out
         self.key = Key(base_uri=base_uri,**key) if key else None
 
 
@@ -348,8 +363,10 @@ class Segment(BasePathMixin):
 
         if self.discontinuity:
             output.append('#EXT-X-DISCONTINUITY\n')
-        if self.program_date_time:
-            output.append('#EXT-X-PROGRAM-DATE-TIME:%s\n' % parser.format_date_time(self.program_date_time))
+            if self.program_date_time:
+                output.append('#EXT-X-PROGRAM-DATE-TIME:%s\n' % parser.format_date_time(self.program_date_time))
+        if self.cue_out:
+            output.append('#EXT-X-CUE-OUT-CONT\n')
         output.append('#EXTINF:%s,' % int_or_float_to_string(self.duration))
         if self.title:
             output.append(quoted(self.title))
@@ -637,8 +654,10 @@ def quoted(string):
     return '"%s"' % string
 
 def _urijoin(base_uri, path):
-    return url_parser.urljoin(base_uri, path)
-
+    if parser.is_url(base_uri):
+        return url_parser.urljoin(base_uri, path)
+    else:
+        return os.path.normpath(os.path.join(base_uri, path.strip('/')))
 
 def int_or_float_to_string(number):
     return str(int(number)) if number == math.floor(number) else str(number)

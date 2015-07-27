@@ -39,6 +39,7 @@ def parse(content, strict=False):
         'is_variant': False,
         'is_endlist': False,
         'is_i_frames_only': False,
+        'is_independent_segments': False,
         'playlist_type': None,
         'playlists': [],
         'iframe_playlists': [],
@@ -75,6 +76,9 @@ def parse(content, strict=False):
         elif line.startswith(protocol.ext_x_discontinuity):
             state['discontinuity'] = True
 
+        elif line.startswith(protocol.ext_x_cue_out):
+            state['cue_out'] = True
+
         elif line.startswith(protocol.ext_x_version):
             _parse_simple_parameter(line, data)
 
@@ -104,6 +108,9 @@ def parse(content, strict=False):
 
         elif line.startswith(protocol.ext_i_frames_only):
             data['is_i_frames_only'] = True
+
+        elif line.startswith(protocol.ext_is_independent_segments):
+            data['is_independent_segments'] = True
 
         elif line.startswith(protocol.ext_x_endlist):
             data['is_endlist'] = True
@@ -150,6 +157,7 @@ def _parse_ts_chunk(line, data, state):
         segment['program_date_time'] = state['current_program_date_time']
         state['current_program_date_time'] += datetime.timedelta(seconds=segment['duration'])
     segment['uri'] = line
+    segment['cue_out'] = state.pop('cue_out', False)
     segment['discontinuity'] = state.pop('discontinuity', False)
     if state.get('current_key'):
       segment['key'] = state['current_key']
