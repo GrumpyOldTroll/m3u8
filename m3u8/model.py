@@ -602,10 +602,10 @@ class Media(BasePathMixin):
     def dumps(self):
         media_out = []
 
-        if self.uri:
-            media_out.append('URI=' + quoted(self.uri))
         if self.type:
             media_out.append('TYPE=' + self.type)
+        if self.uri:
+            media_out.append('URI=' + quoted(self.uri))
         if self.group_id:
             media_out.append('GROUP-ID=' + quoted(self.group_id))
         if self.language:

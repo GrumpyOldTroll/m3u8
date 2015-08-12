@@ -20,7 +20,7 @@ def test_create_a_variant_m3u8_with_two_playlists():
 
     expected_content = """\
 #EXTM3U
-#EXT-X-MEDIA:URI="english_sub.m3u8",TYPE=SUBTITLES,GROUP-ID="subs",LANGUAGE="en",NAME="English",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO
+#EXT-X-MEDIA:TYPE=SUBTITLES,URI="english_sub.m3u8",GROUP-ID="subs",LANGUAGE="en",NAME="English",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO
 #EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1280000,SUBTITLES="subs"
 http://example.com/low.m3u8
 #EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=3000000,SUBTITLES="subs"
@@ -76,7 +76,7 @@ def test_create_a_variant_m3u8_with_two_playlists_and_two_iframe_playlists():
 
     expected_content = """\
 #EXTM3U
-#EXT-X-MEDIA:URI="english_sub.m3u8",TYPE=SUBTITLES,GROUP-ID="subs",\
+#EXT-X-MEDIA:TYPE=SUBTITLES,URI="english_sub.m3u8",GROUP-ID="subs",\
 LANGUAGE="en",NAME="English",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO
 #EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=800000,RESOLUTION=624x352,\
 CODECS="avc1.4d001f, mp4a.40.5",SUBTITLES="subs"
